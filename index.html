@@ -1,0 +1,1040 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0C5A4B">
+<title>Qirsh Wallet Prototype</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Alexandria:wght@300;400;500;600;700&family=Martian+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: one phone with 9 linked screens beside a short brief; the engraved banknote panels are the one loud element, everything around them stays quiet */
+:root{
+  --desk:#E3E8E2;
+  --paper:#F4F6F2;
+  --card:#FFFFFF;
+  --chip:#E4EAE3;
+  --ink:#10211C;
+  --muted:#5D6D67;
+  --line:#D9E0D8;
+  --note:#0C5A4B;
+  --note-deep:#073D33;
+  --on-note:#F3EEDF;
+  --brass:#C6953D;
+  --on-brass:#22190A;
+  --accent-ink:#0C5A4B;
+  --pos:#1B7744;
+  --neg:#A8322A;
+  --bezel:#17221E;
+  --island:#070B0A;
+  --qr-bg:#FFFFFF;
+  --qr-fg:#10211C;
+  --toast-bg:#10211C;
+  --toast-fg:#F4F6F2;
+  --shadow:rgba(16,33,28,.16);
+  --display:"Alexandria","Segoe UI",system-ui,sans-serif;
+  --body:"Alexandria","Segoe UI",system-ui,sans-serif;
+  --mono:"Martian Mono",ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --desk:#090F0D;--paper:#0E1815;--card:#15221E;--chip:#1B2925;--ink:#E5EEE9;--muted:#93A49E;--line:#24342F;
+    --note:#0E5E4F;--note-deep:#063229;--on-note:#F3EEDF;--brass:#DCB063;--on-brass:#22190A;--accent-ink:#86D0B8;
+    --pos:#62C98F;--neg:#F08A7E;--bezel:#26332E;--toast-bg:#E5EEE9;--toast-fg:#0E1815;--shadow:rgba(0,0,0,.5);
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --desk:#090F0D;--paper:#0E1815;--card:#15221E;--chip:#1B2925;--ink:#E5EEE9;--muted:#93A49E;--line:#24342F;
+  --note:#0E5E4F;--note-deep:#063229;--on-note:#F3EEDF;--brass:#DCB063;--on-brass:#22190A;--accent-ink:#86D0B8;
+  --pos:#62C98F;--neg:#F08A7E;--bezel:#26332E;--toast-bg:#E5EEE9;--toast-fg:#0E1815;--shadow:rgba(0,0,0,.5);
+  color-scheme:dark;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+[hidden]{display:none!important}
+body{
+  background:var(--desk);color:var(--ink);font-family:var(--body);font-size:14px;line-height:1.45;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:40px;
+}
+button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:inherit}
+:focus-visible{outline:2px solid var(--brass);outline-offset:2px}
+p,h1,h2,ul,ol{margin:0}
+svg{display:block}
+.ic{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.ic.sm{width:18px;height:18px}
+.ic.xs{width:14px;height:14px}
+.muted{color:var(--muted);font-size:13px}
+.mono{font-family:var(--mono)}
+
+/* stage */
+.stage{max-width:960px;margin:0 auto;display:grid;grid-template-columns:auto minmax(0,1fr);gap:64px;align-items:center;justify-content:center}
+
+/* phone */
+.phone{
+  width:410px;max-width:100%;height:864px;height:clamp(680px,calc(100vh - 80px),864px);
+  border:10px solid var(--bezel);border-radius:56px;background:var(--paper);
+  overflow:hidden;display:flex;flex-direction:column;position:relative;
+  box-shadow:0 30px 60px -20px var(--shadow),0 0 0 1px var(--line);
+}
+.status{display:flex;align-items:center;justify-content:space-between;padding:14px 30px 4px;font-weight:600;font-size:15px;position:relative;flex-shrink:0}
+.island{position:absolute;left:50%;top:10px;transform:translateX(-50%);width:118px;height:32px;border-radius:20px;background:var(--island)}
+.sys{display:flex;gap:6px;align-items:center}
+.views{flex:1;min-height:0;display:flex;flex-direction:column}
+.view{flex:1;min-height:0;overflow-y:auto;scrollbar-width:none;padding:14px 20px 28px;display:flex;flex-direction:column;gap:22px}
+.view::-webkit-scrollbar{display:none}
+.view > *{flex-shrink:0}
+.view.tight{gap:16px}
+.view.enter{animation:enter .22s ease-out}
+@keyframes enter{from{opacity:0;transform:translateX(12px)}to{opacity:1;transform:none}}
+.view[data-view="receipt"]{padding-top:22px}
+
+/* shared parts */
+.bar{display:flex;align-items:center;gap:12px}
+.bar h2{font-size:18px;font-weight:600}
+.back{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--card);flex-shrink:0}
+.h-tab{font-size:26px;font-weight:600;letter-spacing:-.01em}
+.title-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.label{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.cta{display:flex;align-items:center;justify-content:center;width:100%;min-height:52px;padding:0 18px;border-radius:16px;background:var(--ink);color:var(--paper);font-weight:600;font-size:15px;text-align:center}
+.cta:disabled{background:var(--chip);color:var(--muted);cursor:default}
+.btn{display:flex;align-items:center;justify-content:center;gap:8px;min-height:48px;padding:0 14px;border-radius:14px;border:1px solid var(--line);background:var(--card);font-weight:500;font-size:13.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.two .cta{min-height:48px;border-radius:14px}
+.hint{font-size:12px;color:var(--muted);text-align:center}
+.tip{font-size:13px;color:var(--muted);line-height:1.55}
+.link{color:var(--accent-ink);font-weight:600;font-size:13px}
+.field{display:flex;align-items:center;gap:10px;min-height:46px;padding:0 14px;border-radius:14px;background:var(--card);border:1px solid var(--line);color:var(--muted);cursor:text}
+.field input{flex:1;min-width:0;border:0;background:none;font:inherit;font-size:14px;color:var(--ink);outline:none;padding:12px 0}
+.field input::placeholder{color:var(--muted)}
+.field:focus-within{border-color:var(--accent-ink)}
+.chips{display:flex;gap:8px;flex-wrap:wrap}
+.chip{padding:7px 14px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-size:12.5px;font-weight:500}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--paper);border-color:var(--ink)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:2px 16px}
+.line{display:flex;justify-content:space-between;align-items:baseline;gap:16px;padding:12px 0;border-bottom:1px solid var(--line);font-size:13.5px}
+.line:last-child{border-bottom:0}
+.lk{color:var(--muted);flex-shrink:0}
+.lv{font-weight:500;text-align:right;min-width:0;overflow-wrap:anywhere}
+.lv.mono{font-size:12px}
+.line.total .lv{font-size:15px;font-weight:600}
+.empty{padding:24px 0;text-align:center;color:var(--muted);font-size:13.5px;list-style:none}
+
+/* engraved banknote panels */
+.engraved{position:relative;overflow:hidden;isolation:isolate;color:var(--on-note);background:linear-gradient(155deg,var(--note) 0%,var(--note-deep) 100%);border-radius:var(--r)}
+.engraved::after{content:"";position:absolute;inset:7px;border-radius:calc(var(--r) - 6px);border:1px solid color-mix(in srgb,var(--brass) 42%,transparent);pointer-events:none}
+.engraved canvas{position:absolute;inset:0;width:100%;height:100%;z-index:-1}
+.brand{display:flex;align-items:center;gap:8px;font-weight:600;font-size:16px;letter-spacing:.03em}
+.brand .ic{width:22px;height:22px;color:var(--brass)}
+.k{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--on-note) 66%,transparent)}
+.v{display:block;font-family:var(--mono);font-size:13px;margin-top:4px}
+
+/* sign in */
+.si-hero{--r:22px;padding:20px;display:flex;flex-direction:column;gap:22px;min-height:132px}
+.si-tag{font-size:17px;font-weight:300;line-height:1.3;max-width:15em;text-wrap:balance}
+.si-hello{display:flex;flex-direction:column;gap:4px}
+.si-hello [lang="ar"]{align-self:flex-start;font-size:15px;color:var(--muted)}
+.si-hello h2{font-size:24px;font-weight:600;letter-spacing:-.01em}
+.si-phone{display:flex;align-items:center;gap:10px;font-size:13px;color:var(--muted)}
+.pin-wrap{display:flex;flex-direction:column;align-items:center;gap:12px}
+.pin-label{font-size:13px;color:var(--muted)}
+.pin{display:flex;gap:14px}
+.pin i{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--ink);transition:background .1s}
+.pin i.on{background:var(--ink)}
+.keypad{display:grid;grid-template-columns:repeat(3,1fr);gap:4px;margin-top:auto}
+.key{height:52px;border-radius:14px;font-size:22px;font-weight:400;display:grid;place-items:center;font-variant-numeric:tabular-nums}
+.key:active{background:var(--chip)}
+.key .ic{width:24px;height:24px}
+
+/* home */
+.top{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.who{display:flex;align-items:center;gap:12px;min-width:0}
+.avatar{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;background:var(--chip);font-weight:600;font-size:14px;color:var(--accent-ink);flex-shrink:0}
+.avatar.lg{width:64px;height:64px;font-size:20px}
+.hello{font-size:12px;color:var(--muted)}
+.hello [lang="ar"]{font-size:13px}
+.name{font-size:16px;font-weight:600}
+.icon-btn{width:42px;height:42px;border-radius:50%;display:grid;place-items:center;border:1px solid var(--line);background:var(--card);position:relative;flex-shrink:0}
+.dot{position:absolute;top:9px;right:10px;width:8px;height:8px;border-radius:50%;background:var(--brass);box-shadow:0 0 0 2px var(--card)}
+.note{--r:24px;padding:18px 20px 16px;display:flex;flex-direction:column;gap:18px}
+.note-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.serial{font-family:var(--mono);font-size:10px;letter-spacing:.08em;color:color-mix(in srgb,var(--on-note) 70%,transparent)}
+.bal{display:flex;align-items:flex-end;justify-content:space-between;gap:12px}
+.bal-label{font-size:12px;color:color-mix(in srgb,var(--on-note) 78%,transparent);margin-bottom:6px}
+.amt{display:flex;align-items:baseline;gap:8px;font-family:var(--display);font-weight:300;font-size:42px;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.amt .cur{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--brass);align-self:flex-start;margin-top:5px}
+.amt .frac{font-size:20px;opacity:.75}
+.mask{display:none;letter-spacing:.14em}
+.amt .mask{font-size:30px;line-height:42px}
+.note.is-hidden .real{display:none}
+.note.is-hidden .mask{display:inline}
+.eye{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--on-note) 13%,transparent);color:var(--on-note);flex-shrink:0}
+.note-foot{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding-top:12px;border-top:1px solid color-mix(in srgb,var(--on-note) 18%,transparent)}
+.actions{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.qa{display:flex;flex-direction:column;align-items:center;gap:8px;font-size:12px;font-weight:500;text-align:center}
+.tile{width:56px;height:56px;border-radius:18px;display:grid;place-items:center;background:var(--card);border:1px solid var(--line);color:var(--ink);transition:transform .15s ease}
+.qa:active .tile,.cat:active .tile{transform:scale(.94)}
+.qa.primary .tile{background:var(--ink);border-color:var(--ink);color:var(--paper)}
+.due{display:flex;align-items:center;gap:12px;width:100%;padding:12px 12px 12px 14px;border-radius:16px;background:var(--card);border:1px solid var(--line);text-align:left}
+.due-ic{width:38px;height:38px;border-radius:50%;display:grid;place-items:center;background:color-mix(in srgb,var(--brass) 22%,transparent);color:var(--ink);flex-shrink:0}
+.due-txt{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.due-txt b{font-weight:600;font-size:13.5px}
+.due-txt span{font-size:12px;color:var(--muted)}
+.pill{padding:8px 16px;border-radius:999px;background:var(--ink);color:var(--paper);font-weight:600;font-size:12.5px;flex-shrink:0}
+.feed-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:4px}
+.feed-head h2{font-size:16px;font-weight:600}
+.seg{display:flex;align-self:flex-start;padding:3px;border-radius:999px;background:var(--chip);gap:2px}
+.seg button{padding:6px 12px;border-radius:999px;font-size:12px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px var(--shadow)}
+.see-all{display:block;width:100%;padding:12px 0 0;text-align:center;font-size:13px;font-weight:600;color:var(--accent-ink)}
+
+/* activity rows */
+.list{list-style:none;padding:0}
+.list > li{border-bottom:1px solid var(--line)}
+.list > li:last-child{border-bottom:0}
+.row{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;width:100%;padding:12px 0;text-align:left}
+.row-ic{width:40px;height:40px;display:grid;place-items:center;border-radius:12px;background:var(--chip);color:var(--ink)}
+.row-ic.person{border-radius:50%;font-size:13px;font-weight:600;color:var(--accent-ink)}
+.row-mid{display:flex;flex-direction:column;gap:2px;min-width:0}
+.row-t{font-size:14px;font-weight:500}
+.row-s{font-size:12px;color:var(--muted)}
+.row-a{font-family:var(--mono);font-size:13px;font-weight:500;text-align:right;white-space:nowrap}
+.row-a.in{color:var(--pos)}
+.month{display:flex;justify-content:space-between;align-items:baseline;gap:12px;padding:8px 0 2px}
+.month b{font-size:14px;font-weight:600}
+.month span{font-family:var(--mono);font-size:10.5px;color:var(--muted);text-align:right}
+
+/* send */
+.contacts{display:flex;gap:12px;overflow-x:auto;scrollbar-width:none;padding:4px 2px}
+.contacts::-webkit-scrollbar{display:none}
+.contact{display:flex;flex-direction:column;align-items:center;gap:6px;width:60px;flex-shrink:0;font-size:11.5px;text-align:center;line-height:1.25}
+.contact .av{width:50px;height:50px;border-radius:50%;display:grid;place-items:center;background:var(--chip);color:var(--accent-ink);font-weight:600;font-size:14px}
+.contact[aria-pressed="true"] .av{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--accent-ink)}
+.contact .av.add{background:none;border:1.5px dashed var(--line);color:var(--muted)}
+.amount-box{display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center}
+.amount-big{display:flex;align-items:baseline;gap:8px;font-weight:300;font-size:46px;line-height:1.05;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.amount-big .cur{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--accent-ink);align-self:flex-start;margin-top:8px}
+.amount-sub{font-size:12px;color:var(--muted)}
+.amount-sub.err{color:var(--neg);font-weight:500}
+
+/* receive */
+.qr-card{background:var(--card);border:1px solid var(--line);border-radius:24px;padding:24px 20px;display:flex;flex-direction:column;align-items:center;gap:16px;text-align:center}
+.qr{position:relative;width:216px;max-width:100%;aspect-ratio:1;padding:14px;border-radius:18px;background:var(--qr-bg);color:var(--qr-fg);box-shadow:0 0 0 1px var(--line)}
+.qr svg{width:100%;height:100%}
+.qr-logo{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:40px;height:40px;border-radius:50%;background:var(--qr-bg);display:grid;place-items:center;color:var(--brass)}
+.qr-name{font-weight:600;font-size:16px}
+.qr-id{font-family:var(--mono);font-size:12px;letter-spacing:.06em;color:var(--accent-ink);margin-top:4px}
+
+/* pay a bill */
+.bills{display:flex;flex-direction:column}
+.bill{display:grid;grid-template-columns:40px minmax(0,1fr) auto 20px;gap:12px;align-items:center;width:100%;padding:12px 0;border-bottom:1px solid var(--line);text-align:left}
+.bill:last-child{border-bottom:0}
+.bill:disabled{cursor:default}
+.bill:disabled .row-t,.bill:disabled .row-ic,.bill:disabled .radio{opacity:.5}
+.radio{width:20px;height:20px;border-radius:50%;border:1.5px solid var(--muted);transition:border-width .12s}
+.bill[aria-checked="true"] .radio{border:6px solid var(--accent-ink)}
+.paid{font-family:var(--mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;padding:3px 7px;border-radius:999px;background:var(--chip);color:var(--muted)}
+.cats{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.cat{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:11px;font-weight:500;text-align:center}
+.cat .tile{width:48px;height:48px;border-radius:15px}
+
+/* cards */
+.vcard{--r:22px;aspect-ratio:1.586;max-width:100%;padding:18px 20px;display:flex;flex-direction:column;justify-content:space-between;transition:filter .2s}
+.vc-top{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.vc-type{font-family:var(--mono);font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:color-mix(in srgb,var(--on-note) 75%,transparent)}
+.vc-num{font-family:var(--mono);font-size:17px;letter-spacing:.12em}
+.vc-foot{display:flex;justify-content:space-between;gap:12px}
+.vcard.frozen{filter:grayscale(.9) brightness(.85)}
+.vc-frozen{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:none;align-items:center;gap:8px;padding:8px 14px;border-radius:999px;background:color-mix(in srgb,var(--note-deep) 88%,transparent);color:var(--on-note);font-weight:600;font-size:13px;z-index:1}
+.vcard.frozen .vc-frozen{display:flex}
+.setrow{display:flex;align-items:center;gap:12px;width:100%;min-height:50px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;text-align:left}
+.panel > .setrow:last-child{border-bottom:0}
+.setrow .sv{margin-left:auto;color:var(--muted);font-size:13px}
+.setrow .sv.mono{font-size:12px}
+.setrow .push{margin-left:auto}
+.setrow > .ic{color:var(--muted)}
+.setrow.danger{justify-content:center;color:var(--neg);font-weight:600}
+.switch{margin-left:auto;width:46px;height:28px;border-radius:999px;background:var(--chip);position:relative;flex-shrink:0;transition:background .15s}
+.switch::after{content:"";position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:var(--card);box-shadow:0 1px 3px var(--shadow);transition:transform .15s}
+.switch[aria-checked="true"]{background:var(--accent-ink)}
+.switch[aria-checked="true"]::after{transform:translateX(18px)}
+.mini{padding:6px 12px;border-radius:999px;border:1px solid var(--line);font-size:12px;font-weight:500;flex-shrink:0}
+.meter-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;font-size:13.5px;font-weight:500;margin-bottom:8px}
+.meter-head span:last-child{color:var(--muted);font-family:var(--mono);font-size:11px;font-weight:400}
+.meter{height:8px;border-radius:999px;background:var(--chip);overflow:hidden}
+.meter i{display:block;height:100%;min-width:6px;border-radius:inherit;background:var(--brass)}
+
+/* profile */
+.pf-head{display:flex;align-items:center;gap:16px}
+.badge{display:inline-flex;align-items:center;gap:6px;margin-top:8px;padding:4px 10px;border-radius:999px;background:color-mix(in srgb,var(--pos) 14%,transparent);color:var(--pos);font-size:11.5px;font-weight:600}
+.ver{font-family:var(--mono);font-size:10px;color:var(--muted);text-align:center;letter-spacing:.06em}
+
+/* receipt */
+.receipt-wrap{filter:drop-shadow(0 8px 18px var(--shadow));margin-bottom:10px}
+.receipt{position:relative;background:var(--card);border-radius:20px 20px 0 0;padding:26px 20px 14px;display:flex;flex-direction:column;gap:16px}
+.receipt::after{content:"";position:absolute;left:0;right:0;top:100%;height:10px;background:radial-gradient(circle at 10px 10px,transparent 6px,var(--card) 6.5px) 0 0/20px 10px repeat-x}
+.rc-top{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center}
+.ok{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--note);color:var(--on-note)}
+.ok.plain{background:var(--chip);color:var(--ink)}
+.rc-kicker{font-family:var(--mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.rc-amt{font-weight:300;font-size:40px;line-height:1;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.rc-amt .cur{font-family:var(--mono);font-size:12px;font-weight:500;letter-spacing:.08em;color:var(--accent-ink);vertical-align:top;margin-right:6px}
+.rc-what{font-size:14px;font-weight:500}
+.rc-lines{border-top:1.5px dashed var(--line)}
+.rc-lines .line{padding:10px 0;border-bottom:0}
+.status-ok{color:var(--pos);font-weight:600}
+
+/* tab bar */
+.tabbar{flex-shrink:0;display:grid;grid-template-columns:repeat(5,1fr);align-items:end;padding:8px 10px 20px;background:var(--card);border-top:1px solid var(--line)}
+.tab{display:flex;flex-direction:column;align-items:center;gap:4px;font-size:10.5px;font-weight:500;color:var(--muted);padding-top:4px}
+.tab[aria-current="page"]{color:var(--accent-ink)}
+.disc{width:54px;height:54px;border-radius:50%;display:grid;place-items:center;background:var(--brass);color:var(--on-brass);margin-top:-26px;box-shadow:0 0 0 5px var(--card),0 8px 18px var(--shadow)}
+
+/* toast */
+.toast{position:absolute;left:16px;right:16px;bottom:100px;padding:12px 14px;border-radius:14px;background:var(--toast-bg);color:var(--toast-fg);font-size:13px;line-height:1.4;box-shadow:0 10px 30px var(--shadow);z-index:5}
+.phone.no-tabs .toast{bottom:24px}
+.toast.show{animation:rise .22s ease-out}
+@keyframes rise{from{transform:translateY(8px);opacity:0}to{transform:none;opacity:1}}
+
+/* brief beside the phone */
+.brief{max-width:340px;display:flex;flex-direction:column;gap:22px}
+.eyebrow{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.brief h1{font-family:var(--display);font-weight:600;font-size:44px;line-height:1;letter-spacing:-.02em;text-wrap:balance;margin-top:8px}
+.brief p{color:var(--muted);font-size:15px;line-height:1.55}
+.brief h2{font-size:13px;font-weight:600;margin-bottom:8px}
+.tips{padding-left:18px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;gap:4px}
+.screens{list-style:none;padding:0;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:2px 12px;counter-reset:s}
+.screens li{counter-increment:s}
+.screens button{display:flex;gap:8px;align-items:baseline;width:100%;padding:5px 0;font-size:13.5px;color:var(--muted)}
+.screens button::before{content:counter(s);font-family:var(--mono);font-size:10px;min-width:10px}
+.screens button:hover{color:var(--ink)}
+.screens button[aria-current="true"]{color:var(--ink);font-weight:600}
+.screens button[aria-current="true"]::before{color:var(--accent-ink)}
+.ghost{align-self:flex-start;padding:10px 18px;border-radius:999px;border:1px solid var(--line);background:var(--card);font-weight:500;font-size:13px}
+
+@media (prefers-reduced-motion:reduce){
+  .toast.show,.view.enter{animation:none}
+  .tile,.switch,.switch::after,.radio,.vcard{transition:none}
+}
+@media (max-width:860px){
+  .stage{grid-template-columns:minmax(0,1fr);justify-items:center;gap:36px}
+  .brief{max-width:410px;width:100%}
+}
+@media (max-width:480px){
+  body{padding-block:16px}
+  .phone{width:100%;height:calc(100vh - 32px);height:calc(100svh - 32px);min-height:600px;max-height:900px;border-width:1px;border-color:var(--line);border-radius:28px;box-shadow:none}
+  .status{display:none}
+  .view{padding-top:18px}
+}
+</style>
+
+</head>
+<body>
+<main class="stage">
+  <div class="phone" id="phone">
+    <div class="status" aria-hidden="true">
+      <span>9:41</span>
+      <span class="island"></span>
+      <span class="sys">
+        <svg width="18" height="12" viewBox="0 0 18 12"><rect x="0" y="8" width="3" height="4" rx="1" fill="currentColor"/><rect x="5" y="5" width="3" height="7" rx="1" fill="currentColor"/><rect x="10" y="2.5" width="3" height="9.5" rx="1" fill="currentColor"/><rect x="15" y="0" width="3" height="12" rx="1" fill="currentColor"/></svg>
+        <svg width="26" height="12" viewBox="0 0 26 12"><rect x=".5" y=".5" width="22" height="11" rx="3" fill="none" stroke="currentColor" opacity=".5"/><rect x="2.5" y="2.5" width="15" height="7" rx="1.5" fill="currentColor"/><rect x="24" y="4" width="1.6" height="4" rx=".8" fill="currentColor" opacity=".5"/></svg>
+      </span>
+    </div>
+
+    <div class="views">
+
+      <!-- 1 Sign in -->
+      <section class="view" data-view="signin" aria-label="Sign in">
+        <div class="si-hero engraved">
+          <canvas class="engrave" aria-hidden="true"></canvas>
+          <span class="brand"><span data-ic="coin"></span>qirsh</span>
+          <p class="si-tag">Send, pay and get paid in US dollars.</p>
+        </div>
+        <div class="si-hello">
+          <span lang="ar" dir="rtl">أهلاً بك</span>
+          <h2>Welcome back, Youssef</h2>
+          <p class="si-phone">010 •••• 7781 <button class="link" type="button" data-toast="Switching accounts is not in the 9 screens yet.">Not you?</button></p>
+        </div>
+        <div class="pin-wrap">
+          <p class="pin-label">Enter your 6-digit PIN</p>
+          <div class="pin" id="pin" role="img" aria-label="PIN, 0 of 6 digits"><i></i><i></i><i></i><i></i><i></i><i></i></div>
+        </div>
+        <div class="keypad" id="pinpad"></div>
+        <p class="hint">Prototype: any 6 digits sign you in.</p>
+      </section>
+
+      <!-- 2 Home -->
+      <section class="view" data-view="home" aria-label="Home" hidden>
+        <header class="top">
+          <div class="who">
+            <span class="avatar" aria-hidden="true">YM</span>
+            <div>
+              <p class="hello"><span lang="ar" dir="rtl">صباح الخير</span> · Good morning</p>
+              <p class="name">Youssef Mansour</p>
+            </div>
+          </div>
+          <button class="icon-btn" type="button" data-toast="Notifications are not in the 9 screens yet." aria-label="Notifications, 2 new"><span data-ic="bell"></span><span class="dot"></span></button>
+        </header>
+
+        <section class="note engraved" id="note" aria-label="Wallet balance">
+          <canvas class="engrave" aria-hidden="true"></canvas>
+          <div class="note-top">
+            <span class="brand"><span data-ic="coin"></span>qirsh</span>
+            <span class="serial">Nº 0418·2207·QR</span>
+          </div>
+          <div class="bal">
+            <div>
+              <p class="bal-label">Wallet balance</p>
+              <p class="amt"><span class="cur">USD</span><span class="real"><span id="bal-whole">2,485</span><span class="frac" id="bal-frac">.75</span></span><span class="mask" aria-hidden="true">••••••</span></p>
+            </div>
+            <button class="eye" id="eye" type="button" data-act="eye" aria-pressed="false" aria-label="Hide balance"></button>
+          </div>
+          <div class="note-foot">
+            <div><span class="k">In · November</span><span class="v"><span class="real" id="in-nov">+1,950.00</span><span class="mask">••••</span></span></div>
+            <div><span class="k">Out · November</span><span class="v"><span class="real" id="out-nov">−93.50</span><span class="mask">••••</span></span></div>
+          </div>
+        </section>
+
+        <nav class="actions" aria-label="Quick actions">
+          <button class="qa primary" type="button" data-go="send"><span class="tile" data-ic="send"></span>Send</button>
+          <button class="qa" type="button" data-go="receive"><span class="tile" data-ic="receive"></span>Receive</button>
+          <button class="qa" type="button" data-go="pay"><span class="tile" data-ic="bill"></span>Pay bills</button>
+          <button class="qa" type="button" data-go="cards"><span class="tile" data-ic="card"></span>Cards</button>
+        </nav>
+
+        <button class="due" id="due" type="button" data-due="elec">
+          <span class="due-ic" id="due-ic"></span>
+          <span class="due-txt"><b id="due-title">Electricity bill due Sat 14 Nov</b><span id="due-sub">Meter 0912 · $48.60</span></span>
+          <span class="pill">Pay</span>
+        </button>
+
+        <section aria-label="Recent activity">
+          <div class="feed-head">
+            <h2>Activity</h2>
+            <div class="seg" id="home-seg" role="group" aria-label="Filter activity">
+              <button type="button" data-filter="all" aria-pressed="true">All</button>
+              <button type="button" data-filter="in" aria-pressed="false">In</button>
+              <button type="button" data-filter="out" aria-pressed="false">Out</button>
+            </div>
+          </div>
+          <ul class="list" id="home-list"></ul>
+          <button class="see-all" type="button" data-go="history">See all activity</button>
+        </section>
+      </section>
+
+      <!-- 3 Send -->
+      <section class="view tight" data-view="send" aria-label="Send money" hidden>
+        <div class="bar"><button class="back" type="button" data-go="home" aria-label="Back" data-ic="chevL"></button><h2>Send money</h2></div>
+        <label class="field"><span data-ic="search" data-size="sm"></span><input id="send-search" type="text" placeholder="Name, phone or wallet ID" autocomplete="off" aria-label="Find a person"></label>
+        <div><p class="label">Recent</p><div class="contacts" id="contacts"></div></div>
+        <div class="amount-box">
+          <p class="amount-big"><span class="cur">USD</span><span id="amt-show">25</span></p>
+          <p class="amount-sub" id="amt-sub"></p>
+        </div>
+        <div class="chips" role="group" aria-label="Add a note">
+          <button class="chip" type="button" data-note="Rent" aria-pressed="false">Rent</button>
+          <button class="chip" type="button" data-note="Dinner" aria-pressed="false">Dinner</button>
+          <button class="chip" type="button" data-note="Gift" aria-pressed="false">Gift</button>
+          <button class="chip" type="button" data-note="Family" aria-pressed="false">Family</button>
+        </div>
+        <div class="keypad" id="amtpad"></div>
+        <button class="cta" type="button" id="send-cta" data-act="send">Send</button>
+      </section>
+
+      <!-- 4 Receive -->
+      <section class="view" data-view="receive" aria-label="Receive money" hidden>
+        <div class="bar"><button class="back" type="button" data-go="home" aria-label="Back" data-ic="chevL"></button><h2>Receive money</h2></div>
+        <div class="qr-card">
+          <div class="qr" id="qr" role="img" aria-label="Sample payment code for Youssef Mansour"><span class="qr-logo" data-ic="coin"></span></div>
+          <div>
+            <p class="qr-name">Youssef Mansour</p>
+            <p class="qr-id">Nº 0418·2207·QR</p>
+            <p class="muted">010 •••• 7781</p>
+          </div>
+          <p class="hint">Sample code for the prototype. It does not scan.</p>
+        </div>
+        <div class="two">
+          <button class="btn" type="button" data-act="copy"><span data-ic="copy" data-size="sm"></span>Copy wallet ID</button>
+          <button class="btn" type="button" data-toast="Sharing opens the phone's share menu in the real app."><span data-ic="share" data-size="sm"></span>Share</button>
+        </div>
+        <p class="tip">People can scan this code, or send to your wallet ID or phone number. Money between Qirsh wallets arrives instantly and is free.</p>
+      </section>
+
+      <!-- 5 Pay a bill -->
+      <section class="view" data-view="pay" aria-label="Pay a bill" hidden>
+        <div class="bar"><button class="back" type="button" data-go="home" aria-label="Back" data-ic="chevL"></button><h2>Pay a bill</h2></div>
+        <div><p class="label">Your bills</p><div class="bills" id="bills" role="radiogroup" aria-label="Your bills"></div></div>
+        <div class="panel" id="pay-sum"></div>
+        <button class="cta" type="button" id="pay-cta" data-act="pay">Pay</button>
+        <div>
+          <p class="label">Add a new bill</p>
+          <div class="cats">
+            <button class="cat" type="button" data-toast="Adding a new biller is not in the 9 screens yet."><span class="tile" data-ic="bolt"></span>Electricity</button>
+            <button class="cat" type="button" data-toast="Adding a new biller is not in the 9 screens yet."><span class="tile" data-ic="water"></span>Water</button>
+            <button class="cat" type="button" data-toast="Adding a new biller is not in the 9 screens yet."><span class="tile" data-ic="gas"></span>Gas</button>
+            <button class="cat" type="button" data-toast="Adding a new biller is not in the 9 screens yet."><span class="tile" data-ic="wifi"></span>Internet</button>
+            <button class="cat" type="button" data-toast="Adding a new biller is not in the 9 screens yet."><span class="tile" data-ic="mobile"></span>Mobile</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- 6 Cards -->
+      <section class="view" data-view="cards" aria-label="Cards" hidden>
+        <div class="title-row"><h2 class="h-tab">Cards</h2><button class="icon-btn" type="button" data-toast="A second card is not in the 9 screens yet." aria-label="Add a card" data-ic="plus"></button></div>
+        <div class="vcard engraved" id="vcard">
+          <canvas class="engrave" aria-hidden="true"></canvas>
+          <div class="vc-top"><span class="brand"><span data-ic="coin"></span>qirsh</span><span class="vc-type">Virtual · Debit</span></div>
+          <p class="vc-num">•••• •••• •••• 4821</p>
+          <div class="vc-foot">
+            <div><span class="k">Card holder</span><span class="v">YOUSSEF MANSOUR</span></div>
+            <div><span class="k">Expires</span><span class="v">08/29</span></div>
+          </div>
+          <span class="vc-frozen"><span data-ic="lock" data-size="sm"></span>Frozen</span>
+        </div>
+        <div class="panel">
+          <div class="setrow"><span id="sw-frozen">Freeze card</span><button class="switch" type="button" role="switch" data-sw="frozen" aria-checked="false" aria-labelledby="sw-frozen"></button></div>
+          <div class="setrow"><span id="sw-online">Online payments</span><button class="switch" type="button" role="switch" data-sw="online" aria-checked="true" aria-labelledby="sw-online"></button></div>
+          <div class="setrow"><span id="sw-abroad">Payments abroad</span><button class="switch" type="button" role="switch" data-sw="abroad" aria-checked="false" aria-labelledby="sw-abroad"></button></div>
+        </div>
+        <div>
+          <div class="meter-head"><span>Monthly card limit</span><span id="lim-text"></span></div>
+          <div class="meter"><i id="lim-bar"></i></div>
+        </div>
+        <div><p class="label">Card payments</p><ul class="list" id="card-list"></ul></div>
+      </section>
+
+      <!-- 7 History -->
+      <section class="view tight" data-view="history" aria-label="History" hidden>
+        <h2 class="h-tab">History</h2>
+        <label class="field"><span data-ic="search" data-size="sm"></span><input id="hist-search" type="text" placeholder="Search people or bills" autocomplete="off" aria-label="Search activity"></label>
+        <div class="seg" id="hist-seg" role="group" aria-label="Filter activity">
+          <button type="button" data-hfilter="all" aria-pressed="true">All</button>
+          <button type="button" data-hfilter="in" aria-pressed="false">Money in</button>
+          <button type="button" data-hfilter="out" aria-pressed="false">Money out</button>
+        </div>
+        <div id="hist"></div>
+      </section>
+
+      <!-- 8 Profile -->
+      <section class="view" data-view="profile" aria-label="Profile" hidden>
+        <h2 class="h-tab">Profile</h2>
+        <div class="pf-head">
+          <span class="avatar lg" aria-hidden="true">YM</span>
+          <div>
+            <p class="name">Youssef Mansour</p>
+            <p class="muted">010 •••• 7781</p>
+            <span class="badge"><span data-ic="shield" data-size="xs"></span>Verified with National ID</span>
+          </div>
+        </div>
+        <div class="panel">
+          <div class="setrow"><span>Wallet ID</span><span class="sv mono">0418·2207·QR</span><button class="mini" type="button" data-act="copy">Copy</button></div>
+          <button class="setrow" type="button" data-toast="Language is not in the 9 screens yet."><span>Language</span><span class="sv">English</span><span data-ic="chevR" data-size="xs"></span></button>
+          <div class="setrow"><span id="sw-notif">Notifications</span><button class="switch" type="button" role="switch" data-sw="notif" aria-checked="true" aria-labelledby="sw-notif"></button></div>
+          <div class="setrow"><span id="sw-finger">Fingerprint sign-in</span><button class="switch" type="button" role="switch" data-sw="finger" aria-checked="true" aria-labelledby="sw-finger"></button></div>
+          <button class="setrow" type="button" data-toast="Changing your PIN is not in the 9 screens yet."><span>Change PIN</span><span class="push" data-ic="chevR" data-size="xs"></span></button>
+          <button class="setrow" type="button" data-toast="Help is not in the 9 screens yet."><span>Help and support</span><span class="push" data-ic="chevR" data-size="xs"></span></button>
+        </div>
+        <div class="panel"><button class="setrow danger" type="button" data-act="signout">Sign out</button></div>
+        <p class="ver">Qirsh prototype · 9 screens · 10 Nov 2026</p>
+      </section>
+
+      <!-- 9 Receipt -->
+      <section class="view" data-view="receipt" aria-label="Receipt" hidden>
+        <div class="bar" id="rc-bar"><button class="back" type="button" data-act="rc-back" aria-label="Back" data-ic="chevL"></button><h2>Receipt</h2></div>
+        <div class="receipt-wrap"><div class="receipt" id="rc"></div></div>
+        <div class="two">
+          <button class="btn" type="button" data-toast="Sharing opens the phone's share menu in the real app."><span data-ic="share" data-size="sm"></span>Share</button>
+          <button class="cta" type="button" data-act="rc-done">Done</button>
+        </div>
+      </section>
+    </div>
+
+    <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
+    <nav class="tabbar" id="tabbar" aria-label="Main" hidden>
+      <button class="tab" type="button" data-go="home"><span data-ic="home"></span>Home</button>
+      <button class="tab" type="button" data-go="history"><span data-ic="clock"></span>History</button>
+      <button class="tab" type="button" data-toast="Scan to pay is not in the 9 screens yet." aria-label="Scan to pay"><span class="disc" data-ic="scan"></span>Scan</button>
+      <button class="tab" type="button" data-go="cards"><span data-ic="card"></span>Cards</button>
+      <button class="tab" type="button" data-go="profile"><span data-ic="user"></span>Profile</button>
+    </nav>
+  </div>
+
+  <aside class="brief">
+    <div>
+      <p class="eyebrow">Clickable prototype · 9 screens</p>
+      <h1>Qirsh</h1>
+    </div>
+    <p>A money app for Egypt: send and receive money, pay bills and manage a card. Qirsh is a working name, after the Egyptian piastre. Every person and amount here is made up.</p>
+    <div>
+      <h2>Try it</h2>
+      <ul class="tips">
+        <li>Sign in with any 6 digits.</li>
+        <li>Send money or pay the electricity bill. The balance, activity and bills update.</li>
+        <li>Tap any activity row to open its receipt.</li>
+        <li>Freeze the card on the Cards tab.</li>
+      </ul>
+    </div>
+    <div>
+      <h2>Jump to a screen</h2>
+      <ol class="screens" id="jump">
+        <li><button type="button" data-go="signin">Sign in</button></li>
+        <li><button type="button" data-go="home">Home</button></li>
+        <li><button type="button" data-go="send">Send</button></li>
+        <li><button type="button" data-go="receive">Receive</button></li>
+        <li><button type="button" data-go="pay">Pay a bill</button></li>
+        <li><button type="button" data-go="cards">Cards</button></li>
+        <li><button type="button" data-go="history">History</button></li>
+        <li><button type="button" data-go="profile">Profile</button></li>
+        <li><button type="button" data-go="receipt">Receipt</button></li>
+      </ol>
+    </div>
+    <button class="ghost" type="button" data-act="restart">Start over</button>
+  </aside>
+</main>
+
+<script>
+(function(){
+  /* ---------- fixed demo clock: Tuesday 10 Nov 2026, 09:41 ---------- */
+  var TODAY='2026-11-10', YESTERDAY='2026-11-09', NOW='09:41', MONTH='2026-11';
+  var MON=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  var MON_LONG=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var WD=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+  var WALLET='0418·2207·QR', CARD_LIMIT=500;
+
+  var IC={
+    bell:'<path d="M6 16v-5a6 6 0 0 1 12 0v5l1.5 2h-15z"/><path d="M10 20a2 2 0 0 0 4 0"/>',
+    coin:'<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6.5" stroke-width="1"/><path d="M12 8v8"/>',
+    send:'<path d="M7 17 17 7"/><path d="M9 7h8v8"/>',
+    receive:'<path d="M17 7 7 17"/><path d="M15 17H7V9"/>',
+    bill:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>',
+    card:'<rect x="3" y="6" width="18" height="12" rx="2"/><path d="M3 10h18M7 15h3"/>',
+    bolt:'<path d="M13 3 5 13h6l-1 8 8-10h-6z"/>',
+    water:'<path d="M12 3s6 6.5 6 11a6 6 0 0 1-12 0c0-4.5 6-11 6-11z"/>',
+    gas:'<path d="M12 3c3 4 5 6 5 10a5 5 0 0 1-10 0c0-2 1-3.5 2-4.5.5 2 1.5 3 3 3 0-3-1-5.5 0-8.5z"/>',
+    wifi:'<path d="M3 9a14 14 0 0 1 18 0M6 12.5a9 9 0 0 1 12 0M9 16a4 4 0 0 1 6 0"/><circle cx="12" cy="19" r=".8"/>',
+    mobile:'<rect x="7" y="3" width="10" height="18" rx="2"/><path d="M11 18h2"/>',
+    shop:'<path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/>',
+    work:'<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M9 7V5h6v2"/>',
+    home:'<path d="M4 11 12 4l8 7v9h-5v-6H9v6H4z"/>',
+    clock:'<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>',
+    scan:'<path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><path d="M8 12h8"/>',
+    user:'<circle cx="12" cy="8" r="4"/><path d="M4 20c1.5-4 4.5-6 8-6s6.5 2 8 6"/>',
+    chevL:'<path d="M15 5l-7 7 7 7"/>',
+    chevR:'<path d="M9 5l7 7-7 7"/>',
+    plus:'<path d="M12 5v14M5 12h14"/>',
+    search:'<circle cx="11" cy="11" r="6.5"/><path d="M20 20l-4.2-4.2"/>',
+    copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
+    share:'<path d="M12 15V4M8 8l4-4 4 4"/><path d="M5 12v7a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-7"/>',
+    check:'<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+    doc:'<path d="M7 3h7l4 4v14H7z"/><path d="M14 3v4h4M10 12h5M10 16h5"/>',
+    lock:'<rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/>',
+    finger:'<path d="M8.5 20c1-1.6 1.5-3.6 1.5-6a2 2 0 0 1 4 0c0 2.8-.5 5-1.6 7"/><path d="M5.5 16.5c.7-1.4 1-3 1-4.5a5.5 5.5 0 0 1 11 0c0 1.4-.1 2.7-.4 4"/><path d="M4 9.5A8.5 8.5 0 0 1 19.5 8"/>',
+    del:'<path d="M9 6h11v12H9l-6-6z"/><path d="M12.5 9.5l5 5M17.5 9.5l-5 5"/>',
+    shield:'<path d="M12 3l7 3v5c0 4.5-3 8-7 10-4-2-7-5.5-7-10V6z"/><path d="M9 12l2 2 4-4"/>',
+    eye:'<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/>',
+    eyeoff:'<path d="M2 12s3.6-6 10-6 10 6 10 6-3.6 6-10 6S2 12 2 12z"/><circle cx="12" cy="12" r="2.6"/><path d="M4 4l16 16"/>'
+  };
+  function svg(n,sz){return '<svg class="ic'+(sz?' '+sz:'')+'" viewBox="0 0 24 24" aria-hidden="true">'+(IC[n]||'')+'</svg>';}
+
+  var CONTACTS=[
+    {name:'Nour Hassan',ini:'NH',phone:'011 •••• 2204'},
+    {name:'Mariam Adel',ini:'MA',phone:'012 •••• 9035'},
+    {name:'Karim Said',ini:'KS',phone:'010 •••• 4471'},
+    {name:'Salma Fathy',ini:'SF',phone:'015 •••• 6318'}
+  ];
+
+  /* made-up starting data in US dollars; November totals: in 1,950.00, out 93.50 */
+  function initial(){
+    return {
+      view:'signin', pin:'', hideBal:false, filter:'all', hfilter:'all', hq:'', sq:'',
+      balance:2485.75,
+      tx:[
+        {id:1,date:'2026-11-10',time:'09:12',dir:'in',kind:'person',name:'Mariam Adel',ini:'MA',label:'Received',amt:150,phone:'012 •••• 9035'},
+        {id:2,date:'2026-11-10',time:'08:10',dir:'out',kind:'mobile',name:'Mobile top-up',sub:'010 •••• 7781',label:'Top-up',amt:10},
+        {id:3,date:'2026-11-09',time:'21:05',dir:'out',kind:'person',name:'Nour Hassan',ini:'NH',label:'Sent',amt:40,phone:'011 •••• 2204'},
+        {id:4,date:'2026-11-09',time:'18:40',dir:'out',kind:'shop',name:'Fawzy Bakery, Dokki',sub:'Card •••• 4821',label:'Card',amt:8.5,card:true},
+        {id:5,date:'2026-11-02',time:'11:30',dir:'out',kind:'wifi',name:'Home internet',label:'Bill',amt:35,ref:'Account 55-2190'},
+        {id:6,date:'2026-11-01',time:'08:00',dir:'in',kind:'work',name:'Nile Freight Co.',label:'Salary',amt:1800},
+        {id:7,date:'2026-10-28',time:'20:15',dir:'out',kind:'person',name:'Karim Said',ini:'KS',label:'Sent',amt:30,phone:'010 •••• 4471'},
+        {id:8,date:'2026-10-15',time:'10:05',dir:'out',kind:'water',name:'Water',label:'Bill',amt:9.8,ref:'Meter 3307'},
+        {id:9,date:'2026-10-01',time:'08:00',dir:'in',kind:'work',name:'Nile Freight Co.',label:'Salary',amt:1800}
+      ],
+      bills:[
+        {id:'elec',name:'Electricity',kind:'bolt',ref:'Meter 0912',due:'2026-11-14',amt:48.6,paid:false},
+        {id:'water',name:'Water',kind:'water',ref:'Meter 3307',due:'2026-11-20',amt:11.2,paid:false},
+        {id:'net',name:'Home internet',kind:'wifi',ref:'Account 55-2190',due:'2026-12-02',amt:35,paid:true,paidOn:'2026-11-02'}
+      ],
+      send:{to:0,amt:'25',note:''},
+      payId:'elec',
+      card:{frozen:false,online:true,abroad:false},
+      prefs:{notif:true,finger:true},
+      receipt:null, nextId:10
+    };
+  }
+  var S=initial();
+
+  /* ---------- helpers ---------- */
+  function $(s){return document.querySelector(s);}
+  function $$(s){return Array.prototype.slice.call(document.querySelectorAll(s));}
+  function r2(n){return Math.round(n*100)/100;}
+  function fmt(n){return n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});}
+  function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c];});}
+  function P(d){var p=d.split('-');return [+p[0],+p[1],+p[2]];}
+  function wd(d){var p=P(d);return WD[new Date(Date.UTC(p[0],p[1]-1,p[2])).getUTCDay()];}
+  function dShort(d){var p=P(d);return p[2]+' '+MON[p[1]-1];}
+  function dLong(d){return wd(d)+' '+dShort(d);}
+  function rel(d){return d===TODAY?'Today':(d===YESTERDAY?'Yesterday':'');}
+  function sorted(){return S.tx.slice().sort(function(a,b){return (b.date+b.time).localeCompare(a.date+a.time)||b.id-a.id;});}
+  function txById(id){for(var i=0;i<S.tx.length;i++){if(S.tx[i].id===id)return S.tx[i];}return null;}
+  function billById(id){for(var i=0;i<S.bills.length;i++){if(S.bills[i].id===id)return S.bills[i];}return null;}
+  function unpaid(){return S.bills.filter(function(b){return !b.paid;}).sort(function(a,b){return a.due.localeCompare(b.due);});}
+  function sum(list,dir){return r2(list.reduce(function(s,t){return t.dir===dir?s+t.amt:s;},0));}
+  function inMonth(m){return S.tx.filter(function(t){return t.date.slice(0,7)===m;});}
+  function first(n){return n.split(' ')[0];}
+  function line(k,v,cls){return '<div class="line'+(cls?' '+cls:'')+'"><span class="lk">'+k+'</span><span class="lv">'+v+'</span></div>';}
+  function segState(sel,attr,val){$$(sel+' button').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-'+attr)===val));});}
+
+  function rowHTML(t){
+    var ic=t.kind==='person'?'<span class="row-ic person" aria-hidden="true">'+t.ini+'</span>':'<span class="row-ic" aria-hidden="true">'+svg(t.kind,'sm')+'</span>';
+    var r=rel(t.date), when=r?r+' '+t.time:dShort(t.date);
+    var amt='<span class="row-a'+(t.dir==='in'?' in':'')+'">'+(t.dir==='in'?'+':'−')+fmt(t.amt)+'</span>';
+    return '<li><button class="row" type="button" data-tx="'+t.id+'">'+ic+'<span class="row-mid"><span class="row-t">'+t.name+'</span><span class="row-s">'+(t.sub||t.label)+' · '+when+'</span></span>'+amt+'</button></li>';
+  }
+
+  /* ---------- screens ---------- */
+  function renderSignin(){
+    $$('#pin i').forEach(function(d,i){d.classList.toggle('on',i<S.pin.length);});
+    $('#pin').setAttribute('aria-label','PIN, '+S.pin.length+' of 6 digits');
+  }
+
+  function renderHome(){
+    var parts=fmt(S.balance).split('.');
+    $('#bal-whole').textContent=parts[0];
+    $('#bal-frac').textContent='.'+parts[1];
+    var nov=inMonth(MONTH);
+    $('#in-nov').textContent='+'+fmt(sum(nov,'in'));
+    $('#out-nov').textContent='−'+fmt(sum(nov,'out'));
+    $('#note').classList.toggle('is-hidden',S.hideBal);
+    var eye=$('#eye');
+    eye.setAttribute('aria-pressed',String(S.hideBal));
+    eye.setAttribute('aria-label',S.hideBal?'Show balance':'Hide balance');
+    eye.innerHTML=svg(S.hideBal?'eyeoff':'eye');
+    var due=unpaid()[0], d=$('#due');
+    if(due){
+      d.hidden=false;
+      d.setAttribute('data-due',due.id);
+      $('#due-ic').innerHTML=svg(due.kind,'sm');
+      $('#due-title').textContent=due.name+' bill due '+dLong(due.due);
+      $('#due-sub').textContent=due.ref+' · $'+fmt(due.amt);
+    } else d.hidden=true;
+    var rows=sorted().slice(0,6).filter(function(t){return S.filter==='all'||t.dir===S.filter;});
+    $('#home-list').innerHTML=rows.length?rows.map(rowHTML).join(''):'<li class="empty">No money '+S.filter+' among the latest 6.</li>';
+    segState('#home-seg','filter',S.filter);
+  }
+
+  function typed(s){
+    if(!s) return '0';
+    var p=s.split('.'), i=Number(p[0]||'0').toLocaleString('en-US');
+    return p.length>1?i+'.'+p[1]:i;
+  }
+  function renderSend(){
+    var q=S.sq.trim().toLowerCase(), qd=q.replace(/\D/g,''), html='';
+    CONTACTS.forEach(function(c,i){
+      var hit=!q||c.name.toLowerCase().indexOf(q)>=0||(qd&&c.phone.replace(/\D/g,'').indexOf(qd)>=0);
+      if(hit) html+='<button class="contact" type="button" data-contact="'+i+'" aria-pressed="'+(S.send.to===i)+'"><span class="av">'+c.ini+'</span>'+c.name+'</button>';
+    });
+    html+='<button class="contact" type="button" data-toast="Adding a new contact is not in the 9 screens yet."><span class="av add">'+svg('plus','sm')+'</span>New</button>';
+    $('#contacts').innerHTML=html;
+    $('#amt-show').textContent=typed(S.send.amt);
+    var v=r2(parseFloat(S.send.amt||'0')), over=v>S.balance, c=CONTACTS[S.send.to];
+    var sub=$('#amt-sub');
+    sub.textContent=over?'More than your balance of $'+fmt(S.balance):'Balance $'+fmt(S.balance)+' · Free, arrives instantly';
+    sub.classList.toggle('err',over);
+    $$('[data-note]').forEach(function(b){b.setAttribute('aria-pressed',String(b.getAttribute('data-note')===S.send.note));});
+    var cta=$('#send-cta');
+    cta.disabled=!(v>0)||over||!c;
+    cta.textContent=!c?'Choose who gets the money':!(v>0)?'Enter an amount':over?'Lower the amount':'Send $'+fmt(v)+' to '+first(c.name);
+  }
+  function typeAmt(k){
+    var s=S.send.amt, dot=s.indexOf('.');
+    if(k==='del') s=s.slice(0,-1);
+    else if(k==='.'){if(dot<0) s=(s||'0')+'.';}
+    else if(dot>=0){if(s.length-dot-1<2) s+=k;}
+    else if(s===''||s==='0') s=(k==='0')?'':k;
+    else if(s.length<7) s+=k;
+    S.send.amt=s;
+    renderSend();
+  }
+  function doSend(){
+    var v=r2(parseFloat(S.send.amt||'0')), c=CONTACTS[S.send.to];
+    if(!(v>0)||v>S.balance||!c) return;
+    S.balance=r2(S.balance-v);
+    var t={id:S.nextId++,date:TODAY,time:NOW,dir:'out',kind:'person',name:c.name,ini:c.ini,label:'Sent',amt:v,phone:c.phone,note:S.send.note};
+    S.tx.push(t);
+    S.send.amt=''; S.send.note='';
+    S.receipt={id:t.id,fresh:true,back:'home'};
+    go('receipt');
+  }
+
+  function renderReceive(){}
+
+  function renderPay(){
+    if(S.payId&&billById(S.payId).paid) S.payId=null;
+    if(!S.payId&&unpaid()[0]) S.payId=unpaid()[0].id;
+    var list=unpaid().concat(S.bills.filter(function(b){return b.paid;}));
+    $('#bills').innerHTML=list.map(function(b){
+      var sub=b.paid?b.ref+' · Paid '+dShort(b.paidOn):b.ref+' · Due '+dLong(b.due);
+      var right=b.paid?'<span class="paid">Paid</span>':'<span class="row-a">'+fmt(b.amt)+'</span>';
+      return '<button class="bill" type="button" role="radio" data-bill="'+b.id+'" aria-checked="'+(S.payId===b.id)+'"'+(b.paid?' disabled':'')+'><span class="row-ic">'+svg(b.kind,'sm')+'</span><span class="row-mid"><span class="row-t">'+b.name+'</span><span class="row-s">'+sub+'</span></span>'+right+'<span class="radio" aria-hidden="true"></span></button>';
+    }).join('');
+    var b=S.payId?billById(S.payId):null, cta=$('#pay-cta'), box=$('#pay-sum');
+    if(b){
+      var short=b.amt>S.balance;
+      box.hidden=false;
+      box.innerHTML=line('Bill',b.name+' · '+b.ref)+line('Fee','$0.00')+line('Pay from','Wallet · $'+fmt(S.balance))+line('Total','$'+fmt(b.amt),'total');
+      cta.disabled=short;
+      cta.textContent=short?'Not enough balance':'Pay $'+fmt(b.amt);
+    } else {
+      box.hidden=true;
+      cta.disabled=true;
+      cta.textContent='No bills due';
+    }
+  }
+  function doPay(){
+    var b=S.payId?billById(S.payId):null;
+    if(!b||b.paid||b.amt>S.balance) return;
+    S.balance=r2(S.balance-b.amt);
+    b.paid=true; b.paidOn=TODAY;
+    var t={id:S.nextId++,date:TODAY,time:NOW,dir:'out',kind:b.kind,name:b.name,label:'Bill',amt:b.amt,ref:b.ref};
+    S.tx.push(t);
+    S.payId=null;
+    S.receipt={id:t.id,fresh:true,back:'home'};
+    go('receipt');
+  }
+
+  function swState(){
+    $$('[data-sw]').forEach(function(b){
+      var k=b.getAttribute('data-sw'), v=(k in S.card)?S.card[k]:S.prefs[k];
+      b.setAttribute('aria-checked',String(!!v));
+    });
+  }
+  function renderCards(){
+    $('#vcard').classList.toggle('frozen',S.card.frozen);
+    swState();
+    var spent=r2(inMonth(MONTH).filter(function(t){return t.card;}).reduce(function(s,t){return s+t.amt;},0));
+    $('#lim-text').textContent='$'+fmt(spent)+' of $'+fmt(CARD_LIMIT);
+    $('#lim-bar').style.width=Math.min(100,spent/CARD_LIMIT*100)+'%';
+    var list=sorted().filter(function(t){return t.card;});
+    $('#card-list').innerHTML=list.length?list.map(rowHTML).join(''):'<li class="empty">No card payments yet.</li>';
+  }
+
+  function renderHistory(){
+    segState('#hist-seg','hfilter',S.hfilter);
+    var q=S.hq.trim().toLowerCase();
+    var list=sorted().filter(function(t){
+      return (S.hfilter==='all'||t.dir===S.hfilter)&&(!q||(t.name+' '+(t.sub||'')+' '+t.label).toLowerCase().indexOf(q)>=0);
+    });
+    if(!list.length){$('#hist').innerHTML='<p class="empty">'+(q?'Nothing matches “'+esc(S.hq.trim())+'”.':'Nothing here yet.')+'</p>';return;}
+    var html='', cur='';
+    list.forEach(function(t){
+      var m=t.date.slice(0,7);
+      if(m!==cur){
+        if(cur) html+='</ul>';
+        cur=m;
+        var all=inMonth(m), p=P(t.date);
+        html+='<div class="month"><b>'+MON_LONG[p[1]-1]+' '+p[0]+'</b><span>In '+fmt(sum(all,'in'))+' · Out '+fmt(sum(all,'out'))+'</span></div><ul class="list">';
+      }
+      html+=rowHTML(t);
+    });
+    $('#hist').innerHTML=html+'</ul>';
+  }
+
+  function renderProfile(){swState();}
+
+  function ref(t){return 'QR-'+t.date.replace(/-/g,'').slice(2)+'-'+('000'+t.id).slice(-4);}
+  function renderReceipt(){
+    if(!S.receipt||!txById(S.receipt.id)){S.receipt={id:sorted()[0].id,fresh:false,back:'home'};}
+    var r=S.receipt, t=txById(r.id), out=t.dir==='out', bill=t.label==='Bill', person=t.kind==='person';
+    var kicker=r.fresh?(bill?'Bill paid':'Money sent'):'Receipt';
+    var what=person?(out?'Sent to ':'Received from ')+t.name
+      :bill?t.name+' bill'
+      :t.label==='Salary'?'Salary from '+t.name
+      :t.label==='Card'?'Card payment at '+t.name
+      :t.name+(t.sub?' · '+t.sub:'');
+    var from=out?(t.card?'Card •••• 4821':'Qirsh wallet'):t.name;
+    var to=out?(person?t.name+(t.phone?' · '+t.phone:''):(t.label==='Top-up'?t.sub:t.name)):'Qirsh wallet';
+    var lines=line('Date',dLong(t.date)+' 2026, '+t.time)+line('From',from)+line('To',to)
+      +(bill&&t.ref?line('Account',t.ref):'')
+      +(t.note?line('Note',t.note):'')
+      +line('Fee','$0.00')
+      +'<div class="line"><span class="lk">Reference</span><span class="lv mono">'+ref(t)+'</span></div>'
+      +'<div class="line"><span class="lk">Status</span><span class="lv status-ok">Completed</span></div>';
+    $('#rc').innerHTML='<div class="rc-top"><span class="ok'+(r.fresh?'':' plain')+'">'+svg(r.fresh?'check':'doc')+'</span><p class="rc-kicker">'+kicker+'</p><p class="rc-amt"><span class="cur">USD</span>'+fmt(t.amt)+'</p><p class="rc-what">'+esc(what)+'</p></div><div class="rc-lines">'+lines+'</div>';
+    $('#rc-bar').hidden=r.fresh;
+  }
+
+  var RENDER={signin:renderSignin,home:renderHome,send:renderSend,receive:renderReceive,pay:renderPay,cards:renderCards,history:renderHistory,profile:renderProfile,receipt:renderReceipt};
+  var TABS={home:1,history:1,cards:1,profile:1};
+
+  function go(v){
+    S.view=v;
+    var active=null;
+    $$('.view').forEach(function(sec){
+      var on=sec.getAttribute('data-view')===v;
+      sec.hidden=!on;
+      if(on){active=sec;sec.classList.remove('enter');void sec.offsetWidth;sec.classList.add('enter');sec.scrollTop=0;}
+    });
+    var tabs=!!TABS[v];
+    $('#tabbar').hidden=!tabs;
+    $('#phone').classList.toggle('no-tabs',!tabs);
+    $$('#tabbar [data-go]').forEach(function(b){if(b.getAttribute('data-go')===v)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');});
+    $$('#jump [data-go]').forEach(function(b){b.setAttribute('aria-current',String(b.getAttribute('data-go')===v));});
+    hideToast();
+    RENDER[v]();
+    engraveIn(active);
+  }
+
+  function pinKey(k){
+    if(k==='finger'){
+      if(!S.prefs.finger){toast('Fingerprint sign-in is off. Turn it on in Profile.');return;}
+      S.pin='';go('home');return;
+    }
+    if(k==='del') S.pin=S.pin.slice(0,-1);
+    else if(S.pin.length<6) S.pin+=k;
+    renderSignin();
+    if(S.pin.length===6){setTimeout(function(){if(S.view==='signin'&&S.pin.length===6){S.pin='';go('home');}},220);}
+  }
+
+  function toggleSw(k){
+    if(k in S.card){
+      S.card[k]=!S.card[k];
+      if(k==='frozen') toast(S.card.frozen?'Card frozen. Payments with •••• 4821 are blocked.':'Card unfrozen. You can pay with it again.');
+    } else S.prefs[k]=!S.prefs[k];
+    RENDER[S.view]();
+  }
+
+  function copyId(){
+    function ok(){toast('Wallet ID copied: '+WALLET);}
+    function no(){toast('Copy is blocked here. Wallet ID: '+WALLET);}
+    try{
+      if(navigator.clipboard&&navigator.clipboard.writeText) navigator.clipboard.writeText(WALLET).then(ok,no);
+      else no();
+    }catch(err){no();}
+  }
+
+  var timer;
+  function toast(msg){
+    var t=$('#toast');
+    t.textContent=msg; t.hidden=false;
+    t.classList.remove('show'); void t.offsetWidth; t.classList.add('show');
+    clearTimeout(timer);
+    timer=setTimeout(function(){t.hidden=true;},3000);
+  }
+  function hideToast(){clearTimeout(timer);$('#toast').hidden=true;}
+
+  /* ---------- taps ---------- */
+  document.addEventListener('click',function(e){
+    var el=e.target.closest('[data-go],[data-toast],[data-tx],[data-key],[data-pin],[data-contact],[data-note],[data-bill],[data-filter],[data-hfilter],[data-sw],[data-due],[data-act]');
+    if(!el||el.disabled) return;
+    var a;
+    if((a=el.getAttribute('data-go'))!==null){go(a);return;}
+    if((a=el.getAttribute('data-toast'))!==null){toast(a);return;}
+    if((a=el.getAttribute('data-tx'))!==null){S.receipt={id:+a,fresh:false,back:S.view};go('receipt');return;}
+    if((a=el.getAttribute('data-key'))!==null){typeAmt(a);return;}
+    if((a=el.getAttribute('data-pin'))!==null){pinKey(a);return;}
+    if((a=el.getAttribute('data-contact'))!==null){S.send.to=+a;renderSend();return;}
+    if((a=el.getAttribute('data-note'))!==null){S.send.note=S.send.note===a?'':a;renderSend();return;}
+    if((a=el.getAttribute('data-bill'))!==null){S.payId=a;renderPay();return;}
+    if((a=el.getAttribute('data-filter'))!==null){S.filter=a;renderHome();return;}
+    if((a=el.getAttribute('data-hfilter'))!==null){S.hfilter=a;renderHistory();return;}
+    if((a=el.getAttribute('data-sw'))!==null){toggleSw(a);return;}
+    if((a=el.getAttribute('data-due'))!==null){S.payId=a;go('pay');return;}
+    a=el.getAttribute('data-act');
+    if(a==='eye'){S.hideBal=!S.hideBal;renderHome();}
+    else if(a==='send') doSend();
+    else if(a==='pay') doPay();
+    else if(a==='copy') copyId();
+    else if(a==='rc-back'||a==='rc-done') go(S.receipt?S.receipt.back:'home');
+    else if(a==='signout'){S.pin='';go('signin');}
+    else if(a==='restart'){
+      S=initial();
+      $('#send-search').value=''; $('#hist-search').value='';
+      go('signin');
+      toast('Started over. Every amount is back to the start.');
+    }
+  });
+  $('#send-search').addEventListener('input',function(e){S.sq=e.target.value;renderSend();});
+  $('#hist-search').addEventListener('input',function(e){S.hq=e.target.value;renderHistory();});
+  document.addEventListener('keydown',function(e){
+    if(e.target&&e.target.tagName==='INPUT') return;
+    if(e.ctrlKey||e.metaKey||e.altKey) return;
+    var k=e.key==='Backspace'?'del':e.key;
+    if(S.view==='signin'&&/^([0-9]|del)$/.test(k)){e.preventDefault();pinKey(k);}
+    else if(S.view==='send'&&/^([0-9.]|del)$/.test(k)){e.preventDefault();typeAmt(k);}
+  });
+
+  /* ---------- banknote engraving: rosette + wave lines in brass ---------- */
+  function engrave(cv){
+    var box=cv.getBoundingClientRect();
+    if(!box.width||!box.height) return;
+    var dpr=Math.min(window.devicePixelRatio||1,2);
+    cv.width=Math.round(box.width*dpr);
+    cv.height=Math.round(box.height*dpr);
+    var g=cv.getContext('2d');
+    g.setTransform(dpr,0,0,dpr,0,0);
+    g.clearRect(0,0,box.width,box.height);
+    var brass=getComputedStyle(document.documentElement).getPropertyValue('--brass').trim()||'#C6953D';
+    var s=Math.max(.75,Math.min(1.1,box.height/196)), cx=box.width*.8, cy=box.height*.42, i, j, x, y;
+    g.strokeStyle=brass; g.lineWidth=.6;
+    g.globalAlpha=.34;
+    for(i=0;i<48;i++){g.beginPath();g.ellipse(cx,cy,92*s,30*s,i*Math.PI/48,0,Math.PI*2);g.stroke();}
+    g.globalAlpha=.16;
+    for(i=0;i<64;i++){g.beginPath();g.ellipse(cx,cy,150*s,54*s,i*Math.PI/64,0,Math.PI*2);g.stroke();}
+    for(j=0;j<9;j++){
+      g.beginPath();
+      for(x=0;x<=box.width;x+=3){y=box.height-46+j*4.5+Math.sin(x/16+j*.55)*4;if(x===0)g.moveTo(x,y);else g.lineTo(x,y);}
+      g.stroke();
+    }
+  }
+  function engraveIn(root){if(root) Array.prototype.forEach.call(root.querySelectorAll('canvas.engrave'),engrave);}
+  function engraveActive(){engraveIn(document.querySelector('.view:not([hidden])'));}
+  if(window.ResizeObserver){
+    var ro=new ResizeObserver(function(entries){entries.forEach(function(en){var c=en.target.querySelector('canvas.engrave');if(c)engrave(c);});});
+    $$('.engraved').forEach(function(el){ro.observe(el);});
+  } else window.addEventListener('resize',engraveActive);
+  try{window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change',engraveActive);}catch(err){}
+  new MutationObserver(engraveActive).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+
+  /* ---------- sample QR (not scannable) ---------- */
+  function makeQR(){
+    var N=25, seed=4182207, d='', x, y;
+    function rnd(){seed=(seed*16807)%2147483647;return seed/2147483647;}
+    function skip(x,y){return (x<8&&y<8)||(x>=N-8&&y<8)||(x<8&&y>=N-8)||(x>=10&&x<=14&&y>=10&&y<=14);}
+    for(y=0;y<N;y++){for(x=0;x<N;x++){if(rnd()<.5&&!skip(x,y)) d+='M'+x+' '+y+'h1v1h-1z';}}
+    [[0,0],[N-7,0],[0,N-7]].forEach(function(f){var a=f[0],b=f[1];d+='M'+a+' '+b+'h7v7h-7zM'+(a+1)+' '+(b+1)+'h5v5h-5zM'+(a+2)+' '+(b+2)+'h3v3h-3z';});
+    return '<svg viewBox="0 0 25 25" shape-rendering="crispEdges" aria-hidden="true"><path fill="currentColor" fill-rule="evenodd" d="'+d+'"/></svg>';
+  }
+
+  /* ---------- start ---------- */
+  function pad(attr,keys){
+    return keys.map(function(k){
+      var lab=k==='del'?svg('del'):k==='finger'?svg('finger'):k;
+      var aria=k==='del'?' aria-label="Delete"':k==='finger'?' aria-label="Sign in with fingerprint"':'';
+      return '<button class="key" type="button" data-'+attr+'="'+k+'"'+aria+'>'+lab+'</button>';
+    }).join('');
+  }
+  $('#pinpad').innerHTML=pad('pin',['1','2','3','4','5','6','7','8','9','finger','0','del']);
+  $('#amtpad').innerHTML=pad('key',['1','2','3','4','5','6','7','8','9','.','0','del']);
+  $$('[data-ic]').forEach(function(el){el.insertAdjacentHTML('afterbegin',svg(el.getAttribute('data-ic'),el.getAttribute('data-size')));});
+  $('#qr').insertAdjacentHTML('afterbegin',makeQR());
+  go('signin');
+})();
+</script>
+
+</body>
+</html>
